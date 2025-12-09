@@ -32,10 +32,10 @@ dev:
 
 # Docker
 docker-up:
-	docker-compose up -d
+	cd backend && docker-compose up -d
 
 docker-down:
-	docker-compose down
+	cd backend && docker-compose down
 
 docker-restart: docker-down docker-up
 

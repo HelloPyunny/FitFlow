@@ -78,3 +78,28 @@ export const getRecommendation = (data: {
   available_time?: number;
   target_workout?: typeof TargetWorkout[];
 }) => api.post('/recommendations', data);
+
+// User Profile API
+export interface UserProfile {
+  id: number;
+  user_id: number;
+  height: number;
+  weight: number;
+  sex: 'male' | 'female' | 'prefer_not_to_say';
+  age: number;
+  unit_system: 'metric' | 'imperial';
+  experience_level: 'beginner' | 'intermediate' | 'advanced';
+  primary_goal: 'bulk' | 'cut' | 'lean_mass' | 'weight_loss';
+  weekly_frequency: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const getUserProfile = (userId: number) =>
+  api.get<UserProfile>(`/user-profiles/${userId}`);
+
+export const createUserProfile = (data: any) =>
+  api.post<UserProfile>('/user-profiles', data);
+
+export const updateUserProfile = (userId: number, data: any) =>
+  api.put<UserProfile>(`/user-profiles/${userId}`, data);

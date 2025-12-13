@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 
 function WelcomeOverlay() {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const navigate = useNavigate();
+  const { isLoaded, isSignedIn, user } = useUser();
 
   useEffect(() => {
-    // Check if user has already started today
-    const startedToday = sessionStorage.getItem('startedToday');
+    // Only show if user is signed in
+    if (!isLoaded || !isSignedIn) {
+      return;
+    }
+
+    // Check if user has already started today (user-specific)
+    const userId = user?.id || '';
+    const startedToday = sessionStorage.getItem(`startedToday_${userId}`);
     
     if (!startedToday) {
       // Small delay for smooth appearance
@@ -16,21 +24,27 @@ function WelcomeOverlay() {
         setIsVisible(true);
       }, 100);
     }
-  }, []);
+  }, [isLoaded, isSignedIn, user]);
 
   const handleStart = () => {
     setIsAnimating(true);
     
-    // Save to sessionStorage
-    sessionStorage.setItem('startedToday', 'true');
+    // Save to sessionStorage (user-specific)
+    const userId = user?.id || '';
+    sessionStorage.setItem(`startedToday_${userId}`, 'true');
     
     // Wait for animation to complete before navigating and removing
     setTimeout(() => {
       navigate('/');
       setIsVisible(false);
       setIsAnimating(false);
-    }, 300);
+    }, 1000);
   };
+
+  // Don't show if user is not signed in
+  if (!isLoaded || !isSignedIn || !user) {
+    return null;
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -60,27 +74,33 @@ function WelcomeOverlay() {
       >
         <h1
           id="welcome-title"
-          className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4"
+          className="text-5xl sm:text-7xl font-bold text-gray-900 mb-0.5"
         >
-          SmartFit Flow
+          Fit Flow
         </h1>
-        
-        <p className="text-lg sm:text-xl text-gray-600 mb-2">
-          Welcome
-        </p>
-        
+
         <p
           id="welcome-description"
-          className="text-base sm:text-lg text-gray-500 mb-8"
+          className="text-xs sm:text-sm text-gray-500 mb-6"
         >
-          Ready for today's workout?
+          an AI-powered fitness assistant
+        </p>
+        
+        <p className="text-lg sm:text-xl text-gray-600 mb-4">
+          Welcome{user.firstName ? `, ${user.firstName}` : ''}
         </p>
         
         <button
           onClick={handleStart}
           onKeyDown={handleKeyDown}
-          className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-base sm:text-lg font-medium transition-colors duration-200"
-          aria-label="Start today's workout"
+          className="
+          bg-indigo-600 text-white px-8 py-3 rounded-md shadow-md
+          hover:bg-indigo-700
+          hover:-translate-y-0.5 hover:scale-[1.02]
+          transition-all duration-200 ease-out
+          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+          text-base sm:text-lg font-medium
+          "
         >
           Start Today's Workout
         </button>

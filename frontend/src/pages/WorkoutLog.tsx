@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { getExercises, createEventLog, TargetWorkout } from '../lib/api';
 
 interface Set {
@@ -16,6 +17,7 @@ interface Exercise {
 }
 
 function WorkoutLog() {
+  const { user } = useUser();
   const [selectedBodyPart, setSelectedBodyPart] = useState<string>('');
   const [exercises, setExercises] = useState<string[]>([]);
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
@@ -184,9 +186,18 @@ function WorkoutLog() {
       }
     }
 
+    if (!user) return;
+    
     setIsSubmitting(true);
     try {
-      const userId = 1; // TODO: Get from auth context
+      // Convert Clerk user ID to consistent integer
+      let hash = 0;
+      for (let i = 0; i < user.id.length; i++) {
+        const char = user.id.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      const userId = Math.abs(hash);
       
       // Create event log for each set of each exercise
       const promises: Promise<any>[] = [];

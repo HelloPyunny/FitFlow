@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { createUserMetric, TargetWorkout } from '../lib/api';
 
 function Today() {
+  const { user } = useUser();
   const [sleepHours, setSleepHours] = useState<number>(7);
   const [energyLevel, setEnergyLevel] = useState<number>(5);
   const [availableTime, setAvailableTime] = useState<number>(60);
@@ -26,10 +28,21 @@ function Today() {
   };
 
   const handleSubmit = async () => {
+    if (!user) return;
+    
     setIsSubmitting(true);
     try {
+      // Convert Clerk user ID to consistent integer
+      let hash = 0;
+      for (let i = 0; i < user.id.length; i++) {
+        const char = user.id.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      const userId = Math.abs(hash);
+      
       const data = {
-        user_id: 1, // TODO: Get from auth context
+        user_id: userId,
         date: new Date().toISOString(),
         sleep_hours: sleepHours,
         energy_level: energyLevel,

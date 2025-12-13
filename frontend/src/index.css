@@ -10,3 +10,17 @@ body {
   margin: 0;
   min-height: 100vh;
 }
+
+/* Clerk component centering */
+.cl-rootBox,
+.cl-card,
+.cl-cardBox {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100% !important;
+}
+
+/* Hide "Manage account" option from UserButton */
+.cl-userButtonPopoverActionButton[data-localization-key="userButtonPopoverManageAccount"] {
+  display: none !important;
+}

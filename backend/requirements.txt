@@ -1,4 +1,16 @@
 fastapi 
 uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart
+
+# ML/Analytics (optional for now)
+pandas
+scikit-learn
+lightgbm
+joblib
 
 # pip install -r requirements.txt

@@ -7,7 +7,7 @@ start:
 
 # Stop the backend server
 stop:
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	kill -9 $(pgrep -f "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000")
 
 # Restart the backend server
 restart: stop start

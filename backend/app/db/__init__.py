@@ -4,7 +4,8 @@ from app.db.models import (
     WorkoutStep,
     EventLog,
     UserMetric,
-    FatiguePrediction
+    FatiguePrediction,
+    UserProfile
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "EventLog",
     "UserMetric",
     "FatiguePrediction",
+    "UserProfile",
 ]

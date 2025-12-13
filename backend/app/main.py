@@ -4,6 +4,7 @@ from app.db import engine, Base
 from app.core.config import settings
 from app.core.exercises import get_exercises_by_body_part, get_all_exercises
 from app.core.enums import TargetWorkout
+from app.api import user_profile
 
 # Create tables in the database
 Base.metadata.create_all(bind=engine)
@@ -22,6 +23,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(user_profile.router)
 
 @app.get("/health")
 def health_check():

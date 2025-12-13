@@ -10,8 +10,8 @@ class UserMetric(Base):
     user_id = Column(Integer, nullable=False, index=True)
     date = Column(DateTime(timezone=True), nullable=False, index=True)
     sleep_hours = Column(Float, nullable=True)
-    energy_level = Column(Integer, nullable=True)  # 1-10 scale
-    available_time = Column(Integer, nullable=True)  # minutes
-    target_workout = Column(JSON, nullable=True)  # Array of workout body parts: ["back", "chest", ...]
+    energy_level = Column(Integer, nullable=True)
+    available_time = Column(Integer, nullable=True)
+    target_workout = Column(JSON, nullable=True) 
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

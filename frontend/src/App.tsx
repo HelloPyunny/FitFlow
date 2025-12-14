@@ -37,8 +37,8 @@ function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-xl font-bold text-gray-900">
-                SmartFit Flow
+              <Link to="/" className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Fit Flow
               </Link>
             </div>
             {/* Desktop Navigation */}

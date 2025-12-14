@@ -7,7 +7,7 @@ class Settings:
     """Application settings"""
     
     # API Settings
-    API_TITLE: str = "SmartFit Flow API"
+    API_TITLE: str = "Fit Flow API"
     API_DESCRIPTION: str = "AI-based personalized fitness routine automation & performance prediction system"
     API_VERSION: str = "0.1.0"
     

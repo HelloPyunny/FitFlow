@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { getUserEventLogs, getUserEventLogsByDate, updateEventLog, getUserMetricByDate, updateUserMetric, createUserMetric, getRecommendation, type EventLog, type EventLogUpdate, type UserMetric, TargetWorkout } from '../lib/api';
+import { getUserEventLogs, getUserEventLogsByDate, updateEventLog, deleteEventLog, getUserMetricByDate, updateUserMetric, createUserMetric, getRecommendation, type EventLog, type EventLogUpdate, type UserMetric, TargetWorkout } from '../lib/api';
 
 function Dashboard() {
   const { user } = useUser();
@@ -15,6 +15,7 @@ function Dashboard() {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Record<number, Partial<EventLog>>>({});
   const [editEnergyLevel, setEditEnergyLevel] = useState<number | null>(null);
+  const [editWorkoutDate, setEditWorkoutDate] = useState<string | null>(null);
   const [userMetrics, setUserMetrics] = useState<Record<string, UserMetric>>({});
   const [isSaving, setIsSaving] = useState(false);
   
@@ -159,6 +160,7 @@ function Dashboard() {
 
   const handleEditClick = (date: string, logs: EventLog[]) => {
     setEditingDate(date);
+    setEditWorkoutDate(date); // Initialize with current date
     // Initialize edit form data with current log values
     const initialData: Record<number, Partial<EventLog>> = {};
     logs.forEach(log => {
@@ -181,10 +183,38 @@ function Dashboard() {
     setEditingDate(null);
     setEditFormData({});
     setEditEnergyLevel(null);
+    setEditWorkoutDate(null);
+  };
+
+  const handleDeleteLog = async (logId: number, date: string) => {
+    if (!confirm('Are you sure you want to delete this set?')) {
+      return;
+    }
+
+    try {
+      await deleteEventLog(logId);
+      // Reload logs for the date
+      await loadDateLogs(date);
+      // Also reload all workout logs to update calendar
+      if (user) {
+        let hash = 0;
+        for (let i = 0; i < user.id.length; i++) {
+          const char = user.id.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        const userId = Math.abs(hash);
+        const response = await getUserEventLogs(userId);
+        setWorkoutLogs(response.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete log:', err);
+      alert('Failed to delete workout log. Please try again.');
+    }
   };
 
   const handleSaveEdit = async (date: string, logs: EventLog[]) => {
-    if (!user) return;
+    if (!user || !editWorkoutDate) return;
 
     setIsSaving(true);
     try {
@@ -197,7 +227,11 @@ function Dashboard() {
       }
       const userId = Math.abs(hash);
 
-      // Update all event logs
+      // Convert new date to ISO format
+      const newDateObj = new Date(editWorkoutDate + 'T00:00:00.000Z');
+      const newLoggedAt = newDateObj.toISOString();
+
+      // Update all event logs with new date if changed
       const updatePromises = logs.map(log => {
         const logData = editFormData[log.id];
         if (logData) {
@@ -207,6 +241,7 @@ function Dashboard() {
             reps: logData.reps,
             weight: logData.weight,
             rpe: logData.rpe,
+            logged_at: newLoggedAt, // Update date for all logs
           };
           return updateEventLog(log.id, updateData);
         }
@@ -215,27 +250,34 @@ function Dashboard() {
 
       await Promise.all(updatePromises);
 
-      // Update energy level if changed
+      // Update energy level if changed (use new date if date was changed)
+      const targetDate = editWorkoutDate !== date ? editWorkoutDate : date;
       if (editEnergyLevel !== null) {
         try {
-          await updateUserMetric(userId, date, { energy_level: editEnergyLevel });
+          await updateUserMetric(userId, targetDate, { energy_level: editEnergyLevel });
         } catch (err: any) {
           // If metric doesn't exist, create it
-          const dateObj = new Date(date + 'T00:00:00.000Z');
+          const targetDateObj = new Date(targetDate + 'T00:00:00.000Z');
           await createUserMetric({
             user_id: userId,
-            date: dateObj.toISOString(),
+            date: targetDateObj.toISOString(),
             energy_level: editEnergyLevel,
           });
         }
       }
+
+      // If date was changed, we need to reload workout logs to refresh the calendar
+      if (editWorkoutDate !== date) {
+        await loadWorkoutLogs();
+      }
       
-      // Reload logs to reflect changes
-      await loadDateLogs(date);
+      // Reload logs for the target date (new date if changed, or original date)
+      await loadDateLogs(targetDate);
       
       setEditingDate(null);
       setEditFormData({});
       setEditEnergyLevel(null);
+      setEditWorkoutDate(null);
     } catch (err: any) {
       console.error('Failed to update logs:', err);
       alert('Failed to update workout logs. Please try again.');
@@ -931,6 +973,31 @@ function Dashboard() {
                           )}
                         </div>
 
+                        {/* Workout Date Edit (only in edit mode) */}
+                        {isEditing && (
+                          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                              Workout Date
+                            </label>
+                            <input
+                              type="date"
+                              value={editWorkoutDate || ''}
+                              onChange={(e) => setEditWorkoutDate(e.target.value)}
+                              max={(() => {
+                                const today = new Date();
+                                const year = today.getFullYear();
+                                const month = String(today.getMonth() + 1).padStart(2, '0');
+                                const day = String(today.getDate()).padStart(2, '0');
+                                return `${year}-${month}-${day}`;
+                              })()}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Change the date for all workout logs on this day
+                            </p>
+                          </div>
+                        )}
+
                         {/* Energy Level Edit (only in edit mode) */}
                         {isEditing && (
                           <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
@@ -965,38 +1032,46 @@ function Dashboard() {
                                 {exerciseLogs.map((log) => (
                                   <div key={log.id} className="bg-white rounded-md p-2 border border-gray-200">
                                     {isEditing ? (
-                                      <div className="grid grid-cols-3 gap-2 text-xs">
-                                        <div>
-                                          <label className="text-gray-600 block mb-1">Reps</label>
-                                          <input
-                                            type="number"
-                                            value={editFormData[log.id]?.reps || ''}
-                                            onChange={(e) => setEditFormData({ ...editFormData, [log.id]: { ...editFormData[log.id], reps: Number(e.target.value) } })}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                          />
+                                      <div>
+                                        <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                                          <div>
+                                            <label className="text-gray-600 block mb-1">Reps</label>
+                                            <input
+                                              type="number"
+                                              value={editFormData[log.id]?.reps || ''}
+                                              onChange={(e) => setEditFormData({ ...editFormData, [log.id]: { ...editFormData[log.id], reps: Number(e.target.value) } })}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-gray-600 block mb-1">Weight (kg)</label>
+                                            <input
+                                              type="number"
+                                              step="0.5"
+                                              value={editFormData[log.id]?.weight || ''}
+                                              onChange={(e) => setEditFormData({ ...editFormData, [log.id]: { ...editFormData[log.id], weight: Number(e.target.value) } })}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-gray-600 block mb-1">RPE</label>
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              max="10"
+                                              step="0.5"
+                                              value={editFormData[log.id]?.rpe || ''}
+                                              onChange={(e) => setEditFormData({ ...editFormData, [log.id]: { ...editFormData[log.id], rpe: Number(e.target.value) || undefined } })}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                            />
+                                          </div>
                                         </div>
-                                        <div>
-                                          <label className="text-gray-600 block mb-1">Weight (kg)</label>
-                                          <input
-                                            type="number"
-                                            step="0.5"
-                                            value={editFormData[log.id]?.weight || ''}
-                                            onChange={(e) => setEditFormData({ ...editFormData, [log.id]: { ...editFormData[log.id], weight: Number(e.target.value) } })}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="text-gray-600 block mb-1">RPE</label>
-                                          <input
-                                            type="number"
-                                            min="1"
-                                            max="10"
-                                            step="0.5"
-                                            value={editFormData[log.id]?.rpe || ''}
-                                            onChange={(e) => setEditFormData({ ...editFormData, [log.id]: { ...editFormData[log.id], rpe: Number(e.target.value) || undefined } })}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                          />
-                                        </div>
+                                        <button
+                                          onClick={() => handleDeleteLog(log.id, date)}
+                                          className="w-full mt-2 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                        >
+                                          Delete Set
+                                        </button>
                                       </div>
                                     ) : (
                                       <div className="flex items-center justify-between text-xs">
@@ -1023,6 +1098,9 @@ function Dashboard() {
                                       <th className="px-3 lg:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Reps</th>
                                       <th className="px-3 lg:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Weight (kg)</th>
                                       <th className="px-3 lg:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">RPE</th>
+                                      {isEditing && (
+                                        <th className="px-3 lg:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Action</th>
+                                      )}
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1071,6 +1149,16 @@ function Dashboard() {
                                             </span>
                                           )}
                                         </td>
+                                        {isEditing && (
+                                          <td className="px-3 lg:px-4 py-2">
+                                            <button
+                                              onClick={() => handleDeleteLog(log.id, date)}
+                                              className="px-2 py-1 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                            >
+                                              Delete
+                                            </button>
+                                          </td>
+                                        )}
                                       </tr>
                                     ))}
                                   </tbody>

@@ -1,5 +1,5 @@
 # Makefile for frontend
-.PHONY: install build start stop restart clean
+.PHONY: install build preview start stop restart clean
 
 # install dependencies
 install:
@@ -8,6 +8,10 @@ install:
 # build the frontend
 build:
 	npm run build
+
+# preview the frontend
+preview:
+	npm run preview
 
 # Start the frontend server
 start:

@@ -1,35 +1,49 @@
 # Frontend Setup Guide
 
-## 요구사항
-- Node.js 20.x 권장 (LTS)
-- npm, make
+## 1. Prerequisites
 
-## 환경 변수
-백엔드 주소를 바꿔야 하면 루트에 `.env`를 생성하세요.
-```
-VITE_API_URL=http://localhost:8000
-```
-- 설정이 없으면 기본값 `http://localhost:8000`을 사용합니다.
+Install [Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
-## 의존성 설치
+## 2. Installation
+
+### environmetal variables
+
+a. Create `.env` file and put your variables there. Use `.env.example` as reference.
+b. Run `make install` to install all the Node packages we're using
+c. Run `make start` to start the Expo server, default prot: http://localhost:5173
+
+## Clerk Authentication Setup Guide
+
+### 1. Install Clerk
+
+Clerk pakage is already added in package.json. run these commands:
+
 ```bash
 cd frontend
-npm install          # 또는 make install
+npm install
 ```
 
-## 로컬 개발 서버
+### 2. Create a Clerk Account and Get API Keys
+
+1. Create an account at https://dashboard.clerk.com 
+2. Create a new application
+3. Go to the API Keys page and copy the Publishable Key
+
+### 3. Environment Variable Setup
+
+Create a `frontend/.env.local` file and add the following values (`.env` can also be used if preferred):
+
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+VITE_API_URL=http://localhost:8000
+```
+
+## usfull make commands
 ```bash
-npm run dev          # 또는 make start
-# 기본 포트: http://localhost:5173
+make install # install depoendencies
+make start # start server, default prot: http://localhost:5173
+make stop # to stop the server
+make build # build
+make preview # preview
+make clean # clean the frontend server
 ```
-- 백엔드가 `8000` 포트에서 실행 중인지 확인하세요.
-
-## 빌드/미리보기
-```bash
-npm run build
-npm run preview
-```
-
-## 기타 유용한 명령어
-- `npm run lint` : ESLint 검사
-- `make clean`   : `node_modules`, `dist` 등 정리

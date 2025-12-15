@@ -1,13 +1,19 @@
+# FastAPI dependencies
 fastapi 
 uvicorn[standard]
-sqlalchemy
-psycopg2-binary
+
+# Pydantic dependencies
 pydantic
 pydantic-settings
 python-dotenv
 python-multipart
 
-# ML/Analytics (optional for now)
+# Database dependencies
+alembic
+sqlalchemy
+psycopg2-binary
+
+# ML/Analytics
 pandas
 scikit-learn
 lightgbm

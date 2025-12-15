@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { getExercises, createEventLog, TargetWorkout } from '../lib/api';
+import { getExercises, createEventLog, createUserMetric, TargetWorkout } from '../lib/api';
 
 interface Set {
   id: string;
-  reps: number;
-  weight: number;
+  reps?: number;
+  weight?: number;
   rpe?: number;
 }
 
@@ -18,6 +18,18 @@ interface Exercise {
 
 function WorkoutLog() {
   const { user } = useUser();
+  
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+  const [energyLevel, setEnergyLevel] = useState<number>(5);
   const [selectedBodyPart, setSelectedBodyPart] = useState<string>('');
   const [exercises, setExercises] = useState<string[]>([]);
   const [exerciseList, setExerciseList] = useState<Exercise[]>([]);
@@ -27,6 +39,11 @@ function WorkoutLog() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openRpePopover, setOpenRpePopover] = useState<string | null>(null);
+  
+  // Reset date to today when component mounts or user changes
+  useEffect(() => {
+    setSelectedDate(getTodayDate());
+  }, [user]);
 
   const bodyPartOptions = [
     { value: TargetWorkout.BACK, label: 'Back' },
@@ -85,7 +102,7 @@ function WorkoutLog() {
       id: Date.now().toString(),
       name: exerciseName,
       bodyPart: selectedBodyPart,
-      sets: [{ id: Date.now().toString() + '-1', reps: 0, weight: 0 }],
+      sets: [{ id: Date.now().toString() + '-1', reps: undefined, weight: undefined }],
     };
 
     setExerciseList([...exerciseList, newExercise]);
@@ -103,7 +120,7 @@ function WorkoutLog() {
       if (ex.id === exerciseId) {
         return {
           ...ex,
-          sets: [...ex.sets, { id: Date.now().toString(), reps: 0, weight: 0 }],
+          sets: [...ex.sets, { id: Date.now().toString(), reps: undefined, weight: undefined }],
         };
       }
       return ex;
@@ -118,7 +135,7 @@ function WorkoutLog() {
           // If no sets left, add one empty set
           return {
             ...ex,
-            sets: [{ id: Date.now().toString(), reps: 0, weight: 0 }],
+            sets: [{ id: Date.now().toString(), reps: undefined, weight: undefined }],
           };
         }
         return { ...ex, sets: newSets };
@@ -128,13 +145,22 @@ function WorkoutLog() {
   };
 
   const handleSetChange = (exerciseId: string, setId: string, field: keyof Set, value: number | undefined) => {
+    // Ensure reps and weight are non-negative (allow 0, but not negative)
+    let sanitizedValue = value;
+    if (field === 'reps' || field === 'weight') {
+      if (value !== undefined && value < 0) {
+        sanitizedValue = 0;
+      }
+      // Allow 0 and positive numbers, keep undefined as undefined
+    }
+    
     setExerciseList(exerciseList.map(ex => {
       if (ex.id === exerciseId) {
         return {
           ...ex,
           sets: ex.sets.map(s => {
             if (s.id === setId) {
-              return { ...s, [field]: value };
+              return { ...s, [field]: sanitizedValue };
             }
             return s;
           }),
@@ -179,8 +205,8 @@ function WorkoutLog() {
     // Validate all sets
     for (const exercise of exerciseList) {
       for (const set of exercise.sets) {
-        if (set.reps === 0 || set.weight === 0) {
-          alert(`Please fill in all sets for ${exercise.name}`);
+        if (set.reps === undefined || set.weight === undefined || set.reps < 0 || set.weight < 0) {
+          alert(`Please fill in all sets for ${exercise.name} (0 or positive values only)`);
           return;
         }
       }
@@ -199,7 +225,19 @@ function WorkoutLog() {
       }
       const userId = Math.abs(hash);
       
-      // Create event log for each set of each exercise
+      // Convert date string to ISO format with time set to current time or midnight
+      const dateObj = new Date(selectedDate + 'T00:00:00.000Z');
+      const loggedAt = dateObj.toISOString();
+      
+      // Save energy level to UserMetric for this date (daily value, not per set)
+      // This will create or update the metric for this date
+      await createUserMetric({
+        user_id: userId,
+        date: dateObj.toISOString(),
+        energy_level: energyLevel,
+      });
+      
+      // Create event log for each set of each exercise (without energy_level)
       const promises: Promise<any>[] = [];
       
       exerciseList.forEach((exercise) => {
@@ -209,10 +247,11 @@ function WorkoutLog() {
               user_id: userId,
               exercise_name: exercise.name,
               set_number: index + 1,
-              reps: set.reps,
-              weight: set.weight,
+              reps: set.reps ?? 0,
+              weight: set.weight ?? 0,
               rpe: set.rpe,
               completed: true,
+              logged_at: loggedAt,
             })
           );
         });
@@ -222,6 +261,7 @@ function WorkoutLog() {
       alert('Workout logged successfully!');
       
       // Reset form
+      setSelectedDate(getTodayDate());
       setSelectedBodyPart('');
       setExerciseList([]);
       setSelectedExercise('');
@@ -254,13 +294,46 @@ function WorkoutLog() {
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Workout Log</h2>
       
+      {/* Date Selection */}
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+          Workout Date *
+        </label>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          max={getTodayDate()}
+          className="w-full sm:w-auto px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          Select the date when you performed this workout. You can log past workouts too.
+        </p>
+      </div>
+
+      {/* Energy Level */}
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+          Energy level (1-10)
+        </label>
+        <input
+          type="range"
+          min="1"
+          max="10"
+          value={energyLevel}
+          onChange={(e) => setEnergyLevel(parseInt(e.target.value))}
+          className="w-full h-2 sm:h-3"
+        />
+        <div className="text-center text-sm sm:text-base text-gray-600 mt-1 font-medium">{energyLevel}</div>
+      </div>
+      
       {/* Summary Card */}
       {exerciseList.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h3 className="text-base sm:text-lg font-semibold text-indigo-900">
-                Today's Workout Summary
+                Workout Summary ({new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
               </h3>
               <p className="text-xs sm:text-sm text-indigo-700 mt-1">
                 {exerciseList.length} {exerciseList.length === 1 ? 'exercise' : 'exercises'} • {summary.totalSets} {summary.totalSets === 1 ? 'set' : 'sets'}
@@ -423,21 +496,25 @@ function WorkoutLog() {
                     </div>
                     <input
                       type="number"
+                      min="0"
                       placeholder="Reps"
-                      value={set.reps || ''}
-                      onChange={(e) =>
-                        handleSetChange(exercise.id, set.id, 'reps', parseInt(e.target.value) || 0)
-                      }
+                      value={set.reps !== undefined && set.reps !== null ? set.reps : ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                        handleSetChange(exercise.id, set.id, 'reps', isNaN(val as number) ? undefined : val);
+                      }}
                       className="col-span-4 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     />
                     <input
                       type="number"
-                      placeholder="Weight (kg)"
-                      value={set.weight || ''}
-                      onChange={(e) =>
-                        handleSetChange(exercise.id, set.id, 'weight', parseFloat(e.target.value) || 0)
-                      }
+                      min="0"
                       step="0.5"
+                      placeholder="Weight (kg)"
+                      value={set.weight !== undefined && set.weight !== null ? set.weight : ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                        handleSetChange(exercise.id, set.id, 'weight', isNaN(val as number) ? undefined : val);
+                      }}
                       className="col-span-4 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     />
                     <div className="col-span-2 relative" data-rpe-popover={getRpeButtonId(exercise.id, set.id)}>
@@ -520,11 +597,13 @@ function WorkoutLog() {
                         <label className="block text-xs text-gray-500 mb-1">Reps</label>
                         <input
                           type="number"
+                          min="0"
                           placeholder="0"
-                          value={set.reps || ''}
-                          onChange={(e) =>
-                            handleSetChange(exercise.id, set.id, 'reps', parseInt(e.target.value) || 0)
-                          }
+                          value={set.reps !== undefined && set.reps !== null ? set.reps : ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                            handleSetChange(exercise.id, set.id, 'reps', isNaN(val as number) ? undefined : val);
+                          }}
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
                       </div>
@@ -532,12 +611,14 @@ function WorkoutLog() {
                         <label className="block text-xs text-gray-500 mb-1">Weight (kg)</label>
                         <input
                           type="number"
-                          placeholder="0.0"
-                          value={set.weight || ''}
-                          onChange={(e) =>
-                            handleSetChange(exercise.id, set.id, 'weight', parseFloat(e.target.value) || 0)
-                          }
+                          min="0"
                           step="0.5"
+                          placeholder="0.0"
+                          value={set.weight !== undefined && set.weight !== null ? set.weight : ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                            handleSetChange(exercise.id, set.id, 'weight', isNaN(val as number) ? undefined : val);
+                          }}
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
                       </div>

@@ -1,14 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { createUserMetric, TargetWorkout } from '../lib/api';
 
 function Today() {
   const { user } = useUser();
+  
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
   const [sleepHours, setSleepHours] = useState<number>(7);
   const [energyLevel, setEnergyLevel] = useState<number>(5);
   const [availableTime, setAvailableTime] = useState<number>(60);
   const [selectedWorkouts, setSelectedWorkouts] = useState<typeof TargetWorkout[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Reset date to today when component mounts or user changes
+  useEffect(() => {
+    setSelectedDate(getTodayDate());
+  }, [user]);
 
   const workoutOptions = [
     { value: TargetWorkout.BACK, label: 'Back' },
@@ -41,9 +57,12 @@ function Today() {
       }
       const userId = Math.abs(hash);
       
+      // Convert date string to ISO format with time set to midnight UTC
+      const dateObj = new Date(selectedDate + 'T00:00:00.000Z');
+      
       const data = {
         user_id: userId,
-        date: new Date().toISOString(),
+        date: dateObj.toISOString(),
         sleep_hours: sleepHours,
         energy_level: energyLevel,
         available_time: availableTime,
@@ -52,6 +71,7 @@ function Today() {
       await createUserMetric(data);
       alert('Today\'s condition saved successfully!');
       // TODO: Call recommendation API after saving
+      
     } catch (error) {
       console.error('Failed to save:', error);
       alert('Failed to save. Please try again.');
@@ -65,6 +85,19 @@ function Today() {
       <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Input Today's Condition</h2>
       
       <div className="bg-white shadow rounded-lg p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+            Date *
+          </label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            max={getTodayDate()}
+            className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
         <div>
           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
             Target workout (select multiple)

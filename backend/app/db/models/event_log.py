@@ -15,6 +15,7 @@ class EventLog(Base):
     reps = Column(Integer, nullable=False)
     weight = Column(Float, nullable=False)
     rpe = Column(Float, nullable=True)  # Rate of Perceived Exertion (1-10)
+    energy_level = Column(Integer, nullable=True)  # Energy level (1-10) for correlation analysis
     completed = Column(Boolean, default=True)
     logged_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     

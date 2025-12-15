@@ -10,7 +10,12 @@ class UserMetricCreate(BaseModel):
     energy_level: Optional[int] = Field(None, ge=1, le=10)
     available_time: Optional[int] = None
     target_workout: Optional[List[TargetWorkout]] = None  # Can select multiple: ["back", "chest", ...]
-    notes: Optional[str] = None
+
+class UserMetricUpdate(BaseModel):
+    sleep_hours: Optional[float] = None
+    energy_level: Optional[int] = Field(None, ge=1, le=10)
+    available_time: Optional[int] = None
+    target_workout: Optional[List[TargetWorkout]] = None
 
 class UserMetricResponse(BaseModel):
     id: int
@@ -20,7 +25,6 @@ class UserMetricResponse(BaseModel):
     energy_level: Optional[int]
     available_time: Optional[int]
     target_workout: Optional[List[TargetWorkout]]
-    notes: Optional[str]
     created_at: datetime
     
     class Config:

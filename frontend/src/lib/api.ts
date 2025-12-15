@@ -41,8 +41,33 @@ export interface EventLog {
   reps: number;
   weight: number;
   rpe?: number;
+  energy_level?: number;
   completed: boolean;
   logged_at: string;
+}
+
+export interface EventLogCreate {
+  user_id: number;
+  workout_id?: number;
+  exercise_name: string;
+  set_number: number;
+  reps: number;
+  weight: number;
+  rpe?: number;
+  energy_level?: number;
+  completed?: boolean;
+  logged_at?: string;
+}
+
+export interface EventLogUpdate {
+  exercise_name?: string;
+  set_number?: number;
+  reps?: number;
+  weight?: number;
+  rpe?: number;
+  energy_level?: number;
+  completed?: boolean;
+  logged_at?: string;
 }
 
 export interface ExercisesResponse {
@@ -67,8 +92,26 @@ export const getExercises = (bodyPart?: string) => {
 export const createUserMetric = (data: Partial<UserMetric>) =>
   api.post('/user-metrics', data);
 
-export const createEventLog = (data: Partial<EventLog>) =>
-  api.post('/event-logs', data);
+export const getUserMetricByDate = (userId: number, date: string) =>
+  api.get<UserMetric>(`/user-metrics/${userId}/${date}`);
+
+export const updateUserMetric = (userId: number, date: string, data: Partial<UserMetric>) =>
+  api.put<UserMetric>(`/user-metrics/${userId}/${date}`, data);
+
+export const createEventLog = (data: EventLogCreate) =>
+  api.post<EventLog>('/event-logs', data);
+
+export const getUserEventLogs = (userId: number) =>
+  api.get<EventLog[]>(`/event-logs/${userId}`);
+
+export const getUserEventLogsByDate = (userId: number, date: string) =>
+  api.get<EventLog[]>(`/event-logs/${userId}/${date}`);
+
+export const updateEventLog = (eventLogId: number, data: EventLogUpdate) =>
+  api.put<EventLog>(`/event-logs/${eventLogId}`, data);
+
+export const deleteEventLog = (eventLogId: number) =>
+  api.delete(`/event-logs/${eventLogId}`);
 
 export const getRecommendation = (data: {
   user_id: number;

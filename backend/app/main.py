@@ -4,7 +4,7 @@ from app.db import engine, Base
 from app.core.config import settings
 from app.core.exercises import get_exercises_by_body_part, get_all_exercises
 from app.core.enums import TargetWorkout
-from app.api import user_profile
+from app.api import user_profile, user_metric, event_log
 
 # Create tables in the database
 Base.metadata.create_all(bind=engine)
@@ -26,20 +26,17 @@ app.add_middleware(
 
 # Include routers
 app.include_router(user_profile.router)
+app.include_router(user_metric.router)
+app.include_router(event_log.router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "message": "SmartFit Flow API is running"}
+    return {"status": "ok", "message": "Fit Flow API is running"}
 
 @app.get("/exercises")
 def get_exercises(body_part: TargetWorkout = Query(None, description="Filter by body part")):
     """
     Get list of exercises.
-    If body_part is provided, returns exercises for that body part only.
-    Otherwise, returns all exercises organized by body part.
-    
-    Note: Users can also input custom exercise names that are not in this list.
-    The exercise_name field in EventLog accepts any string value.
     """
     if body_part:
         return {

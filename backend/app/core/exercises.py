@@ -1,5 +1,6 @@
 """
-Exercise database organized by body part
+Exercise database organized by body part for user to select from
+Can also add custom exercises if user wants to
 """
 from app.core.enums import TargetWorkout
 

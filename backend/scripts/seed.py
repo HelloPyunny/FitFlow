@@ -8,7 +8,6 @@ This script creates synthetic workout data following realistic patterns:
 """
 
 import sys
-import os
 from pathlib import Path
 from datetime import datetime, timedelta
 import json
@@ -173,7 +172,14 @@ def generate_workout_data(
         return
     
     # Check for scenario events
+    # Note: When using SCENARIO_SCHEDULE, scenario events may not match week_number
+    # because events are defined in scenario files with their own week numbers.
+    # If you want events to apply, either:
+    # 1) Match scenario file event weeks with SCENARIO_SCHEDULE weeks, or
+    # 2) Apply events based on scenario type rather than week number
     event_multipliers = {"volume": 1.0, "intensity": 1.0, "rpe_boost": 0.0}
+    
+    # Apply events if week matches (may not match when using SCENARIO_SCHEDULE)
     for event in scenario.get("events", []):
         if event["week"] == week_number:
             if event["type"] == "overtraining_spike":
@@ -184,6 +190,21 @@ def generate_workout_data(
                 event_multipliers["volume"] = event["volume_multiplier"]
                 event_multipliers["intensity"] = event["intensity_multiplier"]
                 event_multipliers["rpe_boost"] = event["rpe_boost"]
+    
+    # If no event matched, apply scenario defaults based on scenario type
+    # This ensures overtraining/deload scenarios still have their characteristic effects
+    if event_multipliers == {"volume": 1.0, "intensity": 1.0, "rpe_boost": 0.0}:
+        # Apply scenario-specific defaults if no event matched
+        if scenario.get("name") == "overtraining_spike":
+            # Overtraining scenario: higher volume/intensity by default
+            event_multipliers["volume"] = 1.2
+            event_multipliers["intensity"] = 1.1
+            event_multipliers["rpe_boost"] = 1.0
+        elif scenario.get("name") == "deload":
+            # Deload scenario: lower volume/intensity by default
+            event_multipliers["volume"] = 0.7
+            event_multipliers["intensity"] = 0.85
+            event_multipliers["rpe_boost"] = -1.0
     
     # Determine sets and exercises based on scenario
     # Base: 4 sets per exercise (as requested)

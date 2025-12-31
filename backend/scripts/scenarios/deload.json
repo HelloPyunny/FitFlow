@@ -1,0 +1,45 @@
+{
+  "name": "deload",
+  "description": "Deload week for recovery",
+  "weekly_frequency": 3,
+  "sets_per_exercise": {
+    "min": 2,
+    "max": 3
+  },
+  "exercises_per_session": {
+    "min": 3,
+    "max": 4
+  },
+  "rpe_range": {
+    "min": 5.0,
+    "max": 6.5
+  },
+  "weekly_progression": {
+    "volume_increase": -0.3,
+    "intensity_increase": -0.2,
+    "rpe_increase": -1.0
+  },
+  "events": [
+    {
+      "week": 4,
+      "type": "deload",
+      "volume_multiplier": 0.6,
+      "intensity_multiplier": 0.8,
+      "rpe_boost": -1.5
+    },
+    {
+      "week": 12,
+      "type": "deload",
+      "volume_multiplier": 0.65,
+      "intensity_multiplier": 0.85,
+      "rpe_boost": -1.3
+    },
+    {
+      "week": 20,
+      "type": "deload",
+      "volume_multiplier": 0.6,
+      "intensity_multiplier": 0.8,
+      "rpe_boost": -1.5
+    }
+  ]
+}

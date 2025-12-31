@@ -1,0 +1,23 @@
+{
+  "name": "normal",
+  "description": "Normal progressive overload pattern",
+  "weekly_frequency": 4,
+  "sets_per_exercise": {
+    "min": 3,
+    "max": 5
+  },
+  "exercises_per_session": {
+    "min": 4,
+    "max": 6
+  },
+  "rpe_range": {
+    "min": 6.0,
+    "max": 8.5
+  },
+  "weekly_progression": {
+    "volume_increase": 0.02,
+    "intensity_increase": 0.01,
+    "rpe_increase": 0.1
+  },
+  "events": []
+}

@@ -31,7 +31,7 @@ CLERK_USER_ID = "user_36mPo3a0bDaDqmAPSmmo0Uiglgz"  # Put your Clerk user ID her
 # Option 2: Directly specify user_id (integer) - Set to None to use CLERK_USER_ID instead
 DIRECT_USER_ID = None  # Set to an integer to skip hashing
 
-# Delete existing data before seeding?
+# Delete existing data before seeding
 # Set to True to delete all existing EventLog and UserMetric data for this user before seeding
 DELETE_EXISTING_DATA = True  # Set to False to keep existing data (will create duplicates)
 

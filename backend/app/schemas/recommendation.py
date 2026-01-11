@@ -9,9 +9,10 @@ class RecommendationRequest(BaseModel):
     sleep_hours: Optional[float] = None
     energy_level: Optional[int] = None
     available_time: Optional[int] = None
+    target_workout: Optional[List[str]] = None  # List of target body parts
 
 class RecommendationResponse(BaseModel):
-    recommended_workout: Optional[WorkoutResponse]
-    predicted_success_rate: Optional[float]
-    predicted_fatigue: Optional[float]
+    recommended_workout: Optional[WorkoutResponse] = None
+    predicted_success_rate: Optional[float] = None
+    predicted_fatigue: Optional[float] = None
     warnings: List[str] = []

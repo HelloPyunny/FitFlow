@@ -40,10 +40,85 @@ function WorkoutLog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openRpePopover, setOpenRpePopover] = useState<string | null>(null);
   
+  // Check if there's already imported workout in exerciseList
+  const [hasImportedWorkout, setHasImportedWorkout] = useState(false);
+  
+  // Function to import workout from localStorage
+  const importWorkoutFromStorage = (showAlert: boolean = true) => {
+    const importedWorkout = localStorage.getItem('importedWorkout');
+    if (importedWorkout) {
+      try {
+        const data = JSON.parse(importedWorkout);
+        if (data.workout && data.workout.steps) {
+          // Check if already imported in this session
+          const importKey = `imported_${data.workout.id || 'workout'}`;
+          const hasBeenImported = sessionStorage.getItem(importKey) === 'true';
+          
+          // Convert recommended workout to exercise list format
+          const importedExercises: Exercise[] = data.workout.steps.map((step: any, idx: number) => {
+            const sets: Set[] = Array.from({ length: step.target_sets }, (_, i) => ({
+              id: `${Date.now()}-${idx}-${i + 1}`,
+              reps: step.target_reps || 10,
+              weight: step.target_weight || undefined,
+              rpe: undefined, // RPE will be entered by user
+            }));
+            
+            return {
+              id: `imported-${idx}`,
+              name: step.exercise_name,
+              bodyPart: '', // Will be determined from exercise name or left empty
+              sets: sets,
+            };
+          });
+          
+          setExerciseList(importedExercises);
+          setHasImportedWorkout(true);
+          
+          // Set date if provided
+          if (data.date) {
+            setSelectedDate(data.date);
+          }
+          
+          // Set energy level if provided
+          if (data.energy_level) {
+            setEnergyLevel(data.energy_level);
+          }
+          
+          // Show notification only once per import session
+          if (showAlert && !hasBeenImported) {
+            alert('Recommended workout imported! Please enter RPE for each set.');
+            sessionStorage.setItem(importKey, 'true');
+          }
+          
+          return true;
+        }
+      } catch (error) {
+        console.error('Failed to parse imported workout:', error);
+        localStorage.removeItem('importedWorkout');
+      }
+    }
+    return false;
+  };
+  
   // Reset date to today when component mounts or user changes
   useEffect(() => {
     setSelectedDate(getTodayDate());
+    
+    // Check for imported workout from recommendation
+    // Only import if exerciseList is empty (to avoid overwriting existing data)
+    if (exerciseList.length === 0) {
+      importWorkoutFromStorage(true); // Show alert on first load
+    }
   }, [user]);
+  
+  // Also check when exerciseList becomes empty (user cleared all exercises)
+  useEffect(() => {
+    if (exerciseList.length === 0 && !hasImportedWorkout) {
+      // Try to re-import if there's still data in localStorage
+      // Don't show alert when re-importing after clearing
+      importWorkoutFromStorage(false);
+    }
+  }, [exerciseList.length]);
 
   const bodyPartOptions = [
     { value: TargetWorkout.BACK, label: 'Back' },
@@ -259,6 +334,22 @@ function WorkoutLog() {
 
       await Promise.all(promises);
       alert('Workout logged successfully!');
+      
+      // Clear imported workout from localStorage after successful save
+      if (hasImportedWorkout) {
+        const importedWorkout = localStorage.getItem('importedWorkout');
+        if (importedWorkout) {
+          try {
+            const data = JSON.parse(importedWorkout);
+            const importKey = `imported_${data.workout?.id || 'workout'}`;
+            sessionStorage.removeItem(importKey);
+          } catch (error) {
+            console.error('Failed to parse imported workout for cleanup:', error);
+          }
+        }
+        localStorage.removeItem('importedWorkout');
+        setHasImportedWorkout(false);
+      }
       
       // Reset form
       setSelectedDate(getTodayDate());

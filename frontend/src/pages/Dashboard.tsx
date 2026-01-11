@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
 import { getUserEventLogs, getUserEventLogsByDate, updateEventLog, deleteEventLog, getUserMetricByDate, updateUserMetric, createUserMetric, getRecommendation, type EventLog, type EventLogUpdate, type UserMetric, TargetWorkout } from '../lib/api';
 
 function Dashboard() {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [showWorkoutLogs, setShowWorkoutLogs] = useState(false);
   const [workoutLogs, setWorkoutLogs] = useState<EventLog[]>([]);
   const [selectedDateLogs, setSelectedDateLogs] = useState<EventLog[]>([]);
@@ -784,12 +786,55 @@ function Dashboard() {
                       </div>
                     )}
                     {recommendation.recommended_workout && (
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                        <p className="text-xs text-indigo-700 mb-2 font-medium">Recommended Workout</p>
-                        <p className="text-sm text-indigo-900">{recommendation.recommended_workout.name || 'Workout Plan'}</p>
-                        {recommendation.recommended_workout.description && (
-                          <p className="text-xs text-indigo-700 mt-2">{recommendation.recommended_workout.description}</p>
-                        )}
+                      <div className="space-y-4">
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                          <p className="text-xs text-indigo-700 mb-2 font-medium">Recommended Workout</p>
+                          <p className="text-sm font-semibold text-indigo-900">{recommendation.recommended_workout.name || 'Workout Plan'}</p>
+                          {recommendation.recommended_workout.description && (
+                            <p className="text-xs text-indigo-700 mt-2">{recommendation.recommended_workout.description}</p>
+                          )}
+                        </div>
+                        
+                        {/* Exercises with weight recommendations - Only show info, no RPE input */}
+                        <div className="space-y-3">
+                          <p className="text-sm font-semibold text-gray-800">Exercises</p>
+                          {recommendation.recommended_workout.steps && recommendation.recommended_workout.steps.map((step: any, idx: number) => (
+                            <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                              <div className="flex justify-between items-center">
+                                <h6 className="font-semibold text-gray-800">{step.exercise_name}</h6>
+                                <span className="text-sm font-medium text-gray-700">
+                                  {step.target_sets} sets × {step.target_reps} reps
+                                  {step.target_weight && ` @ ${step.target_weight}kg`}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Import to Workout Log Button */}
+                        <button
+                          onClick={() => {
+                            if (!recommendation?.recommended_workout) return;
+                            
+                            // Save recommendation to localStorage for WorkoutLog page
+                            const recommendationData = {
+                              workout: recommendation.recommended_workout,
+                              predicted_success_rate: recommendation.predicted_success_rate,
+                              predicted_fatigue: recommendation.predicted_fatigue,
+                              warnings: recommendation.warnings,
+                              date: getTodayDate(),
+                              energy_level: todayMetric?.energy_level,
+                            };
+                            
+                            localStorage.setItem('importedWorkout', JSON.stringify(recommendationData));
+                            
+                            // Navigate to WorkoutLog page
+                            navigate('/workout-log');
+                          }}
+                          className="w-full bg-green-600 text-white py-2.5 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm sm:text-base font-medium mt-4"
+                        >
+                          Import to Workout Log
+                        </button>
                       </div>
                     )}
                     {recommendation.warnings && recommendation.warnings.length > 0 && (
